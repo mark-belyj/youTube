@@ -44,6 +44,14 @@ bot.on('message', async (msg) => {
     // неоплаченные
     // const unpaidVideosAfter14Days = videosAfter14Days.filter(row => row[5] != 1)
 
+    // просмотров видео, которым > 14 дней, но они не оплаченны
+    let viewsUnpaidVideosAfter14Days = 0
+    videosAfter14Days.forEach(video => {
+      if (Number(video[5]) !== 1) {
+        viewsUnpaidVideosAfter14Days += Number(video[2])
+      }
+    })
+
     // формируем id оплаченных
     /*
     const paidVideoIdsAfter14Days = paidVideosAfter14Days.map(item => item[6])
@@ -81,7 +89,7 @@ bot.on('message', async (msg) => {
         // убираем видео, которым > 14 дней
         videosInfo = videosInfo.filter(item => !videoIdsAfter14Days.includes(item.videoId));
 
-        const views = countingNumberViews(videosInfo)
+        const views = countingNumberViews(videosInfo) + viewsUnpaidVideosAfter14Days
         const money = Math.floor(views * currentConfig.costThousandViews / 1000)
         await bot.sendMessage(chatId, `Просмотров: ${splitNumberIntoGroups(views)}.` + "\n" + `Доход ${messageText}: ${splitNumberIntoGroups(money)} ₽`);
 

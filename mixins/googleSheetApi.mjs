@@ -57,7 +57,7 @@ export const readFromSheet = async (pathToKey, spreadsheetId, tabName) => {
     // Чтение данных из таблицы
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${tabName}!A:G`, // Прочитать значения из всех столбцов от A до G
+      range: `${tabName}!A2:G`, // Прочитать значения из всех столбцов от A до G
       majorDimension: 'ROWS', // Прочитать данные по строкам
     });
 
