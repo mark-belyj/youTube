@@ -1,7 +1,7 @@
 import parameters from './config/parameters.mjs';
 import TelegramBot from 'node-telegram-bot-api';
-import {readFromSheet } from './mixins/googleSheetApi.mjs'
-import {getLastVideoIds, getVideosInfoByIds } from './mixins/youTubeApi.mjs'
+import {readFromSheet} from './mixins/googleSheetApi.mjs'
+import {getLastVideoIds, getVideosInfoByIds} from './mixins/youTubeApi.mjs'
 import {getVideosWithoutComment, countingNumberViews, splitNumberIntoGroups} from './mixins/functions.mjs'
 
 // Создаем экземпляр бота
@@ -46,11 +46,14 @@ bot.on('message', async (msg) => {
 
     // просмотров видео, которым > 14 дней, но они не оплаченны
     let viewsUnpaidVideosAfter14Days = 0
+    let cntUnpaidVideoIdsAfter14Days = 0; // кол-во неоплаченных
     videosAfter14Days.forEach(video => {
       if (Number(video[5]) !== 1) {
+        cntUnpaidVideoIdsAfter14Days += 1
         viewsUnpaidVideosAfter14Days += Number(video[2])
       }
     })
+    const moneyUnpaidVideosAfter14Days = Math.floor(viewsUnpaidVideosAfter14Days * currentConfig.costThousandViews / 1000)
 
     // формируем id оплаченных
     /*
@@ -89,9 +92,35 @@ bot.on('message', async (msg) => {
         // убираем видео, которым > 14 дней
         videosInfo = videosInfo.filter(item => !videoIdsAfter14Days.includes(item.videoId));
 
-        const views = countingNumberViews(videosInfo) + viewsUnpaidVideosAfter14Days
+        let last4Videos = []
+        if (videosInfo.length > 4) {
+          last4Videos = videosInfo.slice(0, 4)
+        }
+
+        const moneyListLast4Videos = last4Videos.map(item =>  Math.floor(Number(item.viewCount) * currentConfig.costThousandViews / 1000) + " ₽\t")
+
+
+        const views = countingNumberViews(videosInfo)
         const money = Math.floor(views * currentConfig.costThousandViews / 1000)
-        await bot.sendMessage(chatId, `Просмотров: ${splitNumberIntoGroups(views)}.` + "\n" + `Доход ${messageText}: ${splitNumberIntoGroups(money)} ₽`);
+
+        const message = `
+          *Общаяя статистика:*
+          ${splitNumberIntoGroups(views + viewsUnpaidVideosAfter14Days)} просмотров
+          ${splitNumberIntoGroups(money + moneyUnpaidVideosAfter14Days)} ₽
+          
+          * > 14 дней - НА ВЫВОД (${cntUnpaidVideoIdsAfter14Days} видео):*
+          ${splitNumberIntoGroups(viewsUnpaidVideosAfter14Days)} просмотров
+          ${splitNumberIntoGroups(moneyUnpaidVideosAfter14Days)} ₽
+          
+          * < 14 дней (${videosInfo.length} видео):*
+          ${splitNumberIntoGroups(views)} просмотров
+          ${splitNumberIntoGroups(money)} ₽
+          
+          * ₽ последние 4 видео видео:*
+          ${moneyListLast4Videos.join(' ')} 
+          `;
+
+        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 
       })
       .catch((error) => {
