@@ -2,26 +2,21 @@ import axios from "../config/axiosConfig.mjs";
 import {subDays, addMinutes} from 'date-fns'
 export const getLastVideoIds = async (channelId, apiKey) => {
   try {
-    let nextPageToken = '';
     let allShortsId = [];
+    const url = `https://www.googleapis.com/youtube/v3/search?part=id&channelId=${channelId}&maxResults=50&type=video&key=${apiKey}&order=date`
+    // взять видосы за последнии 14 дней
+    // const currentDate = new Date();
+    // const fourteenDaysAgo = new Date();
+    // fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    // url += `&publishedAfter=${fourteenDaysAgo.toISOString()}`
 
-    do {
-      let url = `https://www.googleapis.com/youtube/v3/search?part=id&channelId=${channelId}&maxResults=50&type=video&key=${apiKey}&order=date&pageToken=${nextPageToken}`
-      // взять видосы за последнии 14 дней
-      // const currentDate = new Date();
-      // const fourteenDaysAgo = new Date();
-      // fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-      // url += `&publishedAfter=${fourteenDaysAgo.toISOString()}`
+    const response = await axios.get(url);
 
-      const response = await axios.get(url);
-
-      const items = response.data.items;
-      const shortsId = items.map((item) => item.id.videoId)
-      allShortsId = allShortsId.concat(shortsId);
-
-      nextPageToken = response.data.nextPageToken;
-    } while (nextPageToken);
+    const items = response.data.items;
+    const shortsId = items.map((item) => item.id.videoId)
+    allShortsId = allShortsId.concat(shortsId);
     return allShortsId.reverse(); // Отразить порядок ссылок
+
   } catch (error) {
     console.error(`Failed to fetch shorts video links for channel ${channelId}`);
     console.error(error);
