@@ -34,8 +34,8 @@ export const extractVideoId = shortsUrl => {
   return match ? match[1] : null;
 }
 
-export const formatDateToDDMMYYYY = (dateString) => {
-  const date = new Date(dateString);
+export const formatDateToDDMMYYYY = (dateString = null) => {
+  const date = dateString ? new Date(dateString) : new Date();
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = String(date.getFullYear());
