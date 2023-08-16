@@ -1,24 +1,34 @@
 # youTube
 
 
-/etc/systemd/system/youTube.service
+/etc/systemd/system/youtube-tg.service
+/etc/systemd/system/youtube-cron.service
 
-```
-sudo systemctl start youTube
-```
-```
-sudo systemctl enable youTube
-```
+После создания юнитов (systemd обновил свою конфигурацию)
 ```
 sudo systemctl daemon-reload
 ```
 
+Запуск процессов
 ```
-sudo systemctl stop youTube
+sudo systemctl start youtube-tg
+sudo systemctl start youtube-cron
 ```
+
+Автоматический запуск при старте системы
 ```
-sudo systemctl disable youTube
+sudo systemctl enable youtube-tg
+sudo systemctl enable youtube-cron
 ```
+
+Стоп процессов
 ```
-sudo systemctl daemon-reload
+sudo systemctl stop youtube-tg
+sudo systemctl stop youtube-cron
+```
+
+Выключение автоматического запуска при старте системы
+```
+sudo systemctl disable youtube-index
+sudo systemctl disable youtube-cron
 ```

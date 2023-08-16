@@ -28,7 +28,7 @@ const executeScript = command => {
 cron.schedule('0 14,21 * * *', async () => {
   console.log(logFormatDate(new Date()))
   try {
-    await executeScript(`node ${commandPath}`);
+    await executeScript(`/home/dranica/.nvm/versions/node/v20.5.0/bin/node ${commandPath}`);
   } catch (error) {
     console.error('Ошибка при запуске скрипта:', error);
   }
