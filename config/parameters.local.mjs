@@ -7,12 +7,12 @@ const __dirname = path.dirname(__filename);
 const parameters = {
   tg: {
     token: '',
-    chatId: 2
+    chatId: 0
   },
   google: {
     sheet: {
       id: '',
-      pathToKey: path.join(__dirname, './youtybe....json')
+      pathToKey: path.join(__dirname, './youtybe-shorts-stats-6c21e0bcf3c1.json')
     },
     youTube: {
       apiKey: '',
@@ -20,10 +20,12 @@ const parameters = {
   },
   partners: {
     JokeZone: {
-      costThousandViews: 2,
+      costThousandViews: 10,
+      paymentDaysCount: 'Infinity', // СКОЛЬКО ДНЕЙ ОПЛАЧИВАЕТСЯ
       comment: [''],
       startVideoId: '',
-      channelId: ''
+      channelId: '',
+      cronTime: '0 10 * * 1'
     }
   }
 }
