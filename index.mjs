@@ -1,8 +1,13 @@
 import parameters from './config/parameters.mjs';
 import TelegramBot from 'node-telegram-bot-api';
-import {readFromSheet} from './mixins/googleSheetApi.mjs'
+import {readFromGoogleSheet} from './mixins/googleSheetApi.mjs'
 import {getLastVideoIds, getVideosInfoByIds} from './mixins/youTubeApi.mjs'
-import {getVideosWithoutComment, countingNumberViews, splitNumberIntoGroups} from './mixins/functions.mjs'
+import {
+  getVideosWithoutComment,
+  countingNumberViews,
+  splitNumberIntoGroups,
+  extractVideoId
+} from './mixins/functions.mjs'
 
 // Создаем экземпляр бота
 const bot = new TelegramBot(parameters.tg.token, {polling: true});
@@ -35,81 +40,132 @@ bot.on('message', async (msg) => {
   } else if (partners.includes(messageText)) {
     const currentConfig = parameters.partners[messageText]
 
-    const videosAfter14Days = await readFromSheet(parameters.google.sheet.pathToKey, parameters.google.sheet.id, messageText)
-    const videoIdsAfter14Days = videosAfter14Days.map(item => item[6])
+    const shortsId= await getLastVideoIds(currentConfig.channelId, parameters.google.youTube.apiKey)
+    const index = shortsId.findIndex(element => element === currentConfig.startVideoId); // видос с которого считать
+    if (index !== -1) {
+      shortsId.splice(0, index);
+    }
 
-    // оплаченные видео
-    // const paidVideosAfter14Days = videosAfter14Days.filter(row => row[5] == 1)
+    let videosInfo = await getVideosInfoByIds(shortsId, parameters.google.youTube.apiKey, currentConfig.comment)
 
-    // неоплаченные
-    // const unpaidVideosAfter14Days = videosAfter14Days.filter(row => row[5] != 1)
-
-    // просмотров видео, которым > 14 дней, но они не оплаченны
-    let viewsUnpaidVideosAfter14Days = 0
-    let cntUnpaidVideoIdsAfter14Days = 0; // кол-во неоплаченных
-    videosAfter14Days.forEach(video => {
-      if (Number(video[5]) !== 1) {
-        cntUnpaidVideoIdsAfter14Days += 1
-        viewsUnpaidVideosAfter14Days += Number(video[2])
+    // ищем видео без коммента
+    const videosWithoutComment = getVideosWithoutComment(videosInfo)
+    if (videosWithoutComment.length) {
+      await bot.sendMessage(chatId, "Видео без коммента: \n");
+      for (const item of videosWithoutComment) {
+        await bot.sendMessage(chatId, item.url + "\n");
       }
-    })
-    const moneyUnpaidVideosAfter14Days = Math.floor(viewsUnpaidVideosAfter14Days * currentConfig.costThousandViews / 1000)
+    }
 
-    // формируем id оплаченных
-    /*
-    const paidVideoIdsAfter14Days = paidVideosAfter14Days.map(item => item[6])
-    */
+    if (currentConfig.paymentDaysCount === 'Infinity') {
+      const googleSheetData= await readFromGoogleSheet(parameters.google.sheet.pathToKey, parameters.google.sheet.id, messageText)
+      const elementsOnlyInVideosInfo = [];
+      const elementsInBothItem = [];
 
-    /*
-    // формируем id неоплаченных
-    const unpaidVideoIdsAfter14Days = unpaidVideosAfter14Days.map(item => item[6])
-    */
+      videosInfo.forEach((videosInfoItem) => {
+        const videoId = videosInfoItem.videoId;
+        const googleSheetMatch = googleSheetData.find(
+          (googleSheetDataItem) => extractVideoId(googleSheetDataItem[1]) === videoId
+        );
 
-    getLastVideoIds(currentConfig.channelId, parameters.google.youTube.apiKey)
-      .then(async (shortsId) => {
-        const index = shortsId.findIndex(element => element === currentConfig.startVideoId); // видос с которого считать
-        if (index !== -1) {
-          shortsId.splice(0, index);
+        if (!googleSheetMatch) {
+          elementsOnlyInVideosInfo.push(videosInfoItem);
+        } else {
+          const googleSheetIndex = googleSheetData.indexOf(googleSheetMatch);
+          const googleSheetViewCount = googleSheetMatch[4];
+
+          elementsInBothItem.push({
+            ...videosInfoItem,
+            googleSheetIndex,
+            googleSheetViewCount,
+          })
         }
+      })
 
-        // убираем оплаченные видео
-        // shortsId = shortsId.filter(item => !paidVideoIdsAfter14Days.includes(item));
+      let totalNewViewCount = 0;
+      elementsOnlyInVideosInfo.forEach((element) => {
+        totalNewViewCount += parseInt(element.viewCount);
+      });
 
-        let videosInfo = await getVideosInfoByIds(shortsId, parameters.google.youTube.apiKey, currentConfig.comment)
+      let totalOldViewCount = 0;
+      elementsInBothItem.forEach((element) => {
+        totalOldViewCount = totalOldViewCount + parseInt(element.viewCount) - parseInt(element.googleSheetViewCount);
+      });
 
-        // ищем видео без коммента
-        const videosWithoutComment = getVideosWithoutComment(videosInfo)
-        if (videosWithoutComment.length) {
-          await bot.sendMessage(chatId, "Видео без коммента: \n");
-          for (const item of videosWithoutComment) {
-            await bot.sendMessage(chatId, item.url + "\n");
-          }
+      const message = ` 
+          * СТАРЫЕ ВИДОСЫ (С ПОСЛЕДНЕЙ ВЫПЛАТЫ) (${elementsInBothItem.length} видео):*
+          ${splitNumberIntoGroups(totalOldViewCount)} просмотров
+          ${splitNumberIntoGroups(Math.floor(totalOldViewCount * currentConfig.costThousandViews / 1000))} ₽
+          
+          * НОВЫЕ ВИДОСЫ (${elementsOnlyInVideosInfo.length} видео):*
+          ${splitNumberIntoGroups(totalNewViewCount)} просмотров
+          ${splitNumberIntoGroups(Math.floor(totalNewViewCount * currentConfig.costThousandViews / 1000))} ₽
+          
+          * СРЕДНЕЕ ₽:*
+          ${Math.floor((totalNewViewCount + totalOldViewCount) * currentConfig.costThousandViews / 1000) / (elementsInBothItem.length + elementsOnlyInVideosInfo.length)} 
+          `;
+
+      await bot.sendMessage(chatId, message, {parse_mode: 'Markdown'});
+
+
+
+    } else {
+      const videosAfterNDays = await readFromGoogleSheet(parameters.google.sheet.pathToKey, parameters.google.sheet.id, messageText)
+      const videoIdsAfterNDays = videosAfterNDays.map(item => item[6])
+
+      // оплаченные видео
+      // const paidVideosAfterNDays = videosAfterNDays.filter(row => row[5] == 1)
+
+      // неоплаченные
+      // const unpaidVideosAfterNDays = videosAfterNDays.filter(row => row[5] != 1)
+
+      // просмотров видео, которым > 14 дней, но они не оплаченны
+      let viewsUnpaidVideosAfterNDays = 0
+      let cntUnpaidVideoIdsAfterNDays = 0; // кол-во неоплаченных
+      videosAfterNDays.forEach(video => {
+        if (Number(video[5]) !== 1) {
+          cntUnpaidVideoIdsAfterNDays += 1
+          viewsUnpaidVideosAfterNDays += Number(video[2])
         }
+      })
+      const moneyUnpaidVideosAfter14Days = Math.floor(viewsUnpaidVideosAfterNDays * currentConfig.costThousandViews / 1000)
 
-        // убираем неоплаченные видео
-        // videosInfo = videosInfo.filter(item => !unpaidVideoIdsAfter14Days.includes(item.videoId));
+      // формируем id оплаченных
+      /*
+      const paidVideoIdsAfter14Days = paidVideosAfterNDays.map(item => item[6])
+      */
 
-        // убираем видео, которым > 14 дней
-        videosInfo = videosInfo.filter(item => !videoIdsAfter14Days.includes(item.videoId));
+      /*
+      // формируем id неоплаченных
+      const unpaidVideoIdsAfter14Days = unpaidVideosAfterNDays.map(item => item[6])
+      */
 
-        let last4Videos = []
-        if (videosInfo.length > 4) {
-          last4Videos = videosInfo.slice(0, 4)
-        }
+      // убираем оплаченные видео
+      // shortsId = shortsId.filter(item => !paidVideoIdsAfter14Days.includes(item));
 
-        const moneyListLast4Videos = last4Videos.map(item =>  Math.floor(Number(item.viewCount) * currentConfig.costThousandViews / 1000) + " ₽\t")
+      // убираем неоплаченные видео
+      // videosInfo = videosInfo.filter(item => !unpaidVideoIdsAfter14Days.includes(item.videoId));
 
+      // убираем видео, которым > 14 дней
+      videosInfo = videosInfo.filter(item => !videoIdsAfterNDays.includes(item.videoId));
 
-        const views = countingNumberViews(videosInfo)
-        const money = Math.floor(views * currentConfig.costThousandViews / 1000)
+      let last4Videos = []
+      if (videosInfo.length > 4) {
+        last4Videos = videosInfo.slice(0, 4)
+      }
 
-        const message = `
+      const moneyListLast4Videos = last4Videos.map(item => Math.floor(Number(item.viewCount) * currentConfig.costThousandViews / 1000) + " ₽\t")
+
+      const views = countingNumberViews(videosInfo)
+      const money = Math.floor(views * currentConfig.costThousandViews / 1000)
+
+      const message = `
           *Общаяя статистика:*
-          ${splitNumberIntoGroups(views + viewsUnpaidVideosAfter14Days)} просмотров
+          ${splitNumberIntoGroups(views + viewsUnpaidVideosAfterNDays)} просмотров
           ${splitNumberIntoGroups(money + moneyUnpaidVideosAfter14Days)} ₽
           
-          * > 14 дней - НА ВЫВОД (${cntUnpaidVideoIdsAfter14Days} видео):*
-          ${splitNumberIntoGroups(viewsUnpaidVideosAfter14Days)} просмотров
+          * > 14 дней - НА ВЫВОД (${cntUnpaidVideoIdsAfterNDays} видео):*
+          ${splitNumberIntoGroups(viewsUnpaidVideosAfterNDays)} просмотров
           ${splitNumberIntoGroups(moneyUnpaidVideosAfter14Days)} ₽
           
           * < 14 дней (${videosInfo.length} видео):*
@@ -120,12 +176,8 @@ bot.on('message', async (msg) => {
           ${moneyListLast4Videos.join(' ')} 
           `;
 
-        await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      await bot.sendMessage(chatId, message, {parse_mode: 'Markdown'});
 
-      })
-      .catch((error) => {
-        console.error('Error:', error);
-      });
-
+    }
   }
 });
