@@ -93,21 +93,19 @@ bot.on('message', async (msg) => {
       });
 
       const message = ` 
-          * СТАРЫЕ ВИДОСЫ (С ПОСЛЕДНЕЙ ВЫПЛАТЫ) (${elementsInBothItem.length} видео):*
+          * Старые видео (с последней выплаты) (${elementsInBothItem.length} шт.): *
           ${splitNumberIntoGroups(totalOldViewCount)} просмотров
           ${splitNumberIntoGroups(Math.floor(totalOldViewCount * currentConfig.costThousandViews / 1000))} ₽
           
-          * НОВЫЕ ВИДОСЫ (${elementsOnlyInVideosInfo.length} видео):*
+          * Новые (${elementsOnlyInVideosInfo.length} шт.):*
           ${splitNumberIntoGroups(totalNewViewCount)} просмотров
           ${splitNumberIntoGroups(Math.floor(totalNewViewCount * currentConfig.costThousandViews / 1000))} ₽
           
-          * СРЕДНЕЕ ₽:*
-          ${Math.floor((totalNewViewCount + totalOldViewCount) * currentConfig.costThousandViews / 1000) / (elementsInBothItem.length + elementsOnlyInVideosInfo.length)} 
+          * средняя прибыль за 1 видео :*
+          ${Math.floor((totalNewViewCount + totalOldViewCount) * currentConfig.costThousandViews / 1000 / (elementsInBothItem.length + elementsOnlyInVideosInfo.length))} ₽
           `;
 
       await bot.sendMessage(chatId, message, {parse_mode: 'Markdown'});
-
-
 
     } else {
       const videosAfterNDays = await readFromGoogleSheet(parameters.google.sheet.pathToKey, parameters.google.sheet.id, messageText)
