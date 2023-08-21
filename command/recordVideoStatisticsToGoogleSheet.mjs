@@ -139,8 +139,6 @@ const recordVideoStatisticsToGoogleSheet = async (key) => {
         }
       });
 
-
-
       // обновляем
       await updateGoogleSheetWithoutPeriod(
         parameters.google.sheet.pathToKey,
@@ -148,7 +146,6 @@ const recordVideoStatisticsToGoogleSheet = async (key) => {
         key,
         elementsInBothItem
       )
-
 
       // добавили новые видосы, которых еще нет в таблице
       if (elementsOnlyInVideosInfo.length) {
@@ -168,8 +165,6 @@ const recordVideoStatisticsToGoogleSheet = async (key) => {
           dataToWrite
         )
       }
-
-
     } else {
       videoList = await getVideoStatsPublishedNDaysAgo(currentConfig.channelId, parameters.google.youTube.apiKey, currentConfig.paymentDaysCount, 5);
 

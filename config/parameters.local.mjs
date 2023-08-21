@@ -21,7 +21,7 @@ const parameters = {
   partners: {
     JokeZone: {
       costThousandViews: 10,
-      paymentDaysCount: 'Infinity', // СКОЛЬКО ДНЕЙ ОПЛАЧИВАЕТСЯ
+      paymentDaysCount: Infinity, // СКОЛЬКО ДНЕЙ ОПЛАЧИВАЕТСЯ
       comment: [''],
       startVideoId: '',
       channelId: '',

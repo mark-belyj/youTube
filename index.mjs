@@ -57,7 +57,7 @@ bot.on('message', async (msg) => {
       }
     }
 
-    if (currentConfig.paymentDaysCount === 'Infinity') {
+    if (currentConfig.paymentDaysCount === Infinity) {
       const googleSheetData= await readFromGoogleSheet(parameters.google.sheet.pathToKey, parameters.google.sheet.id, messageText)
       const elementsOnlyInVideosInfo = [];
       const elementsInBothItem = [];
